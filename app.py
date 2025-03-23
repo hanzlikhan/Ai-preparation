@@ -18,6 +18,12 @@ try:
 except LookupError:
     nltk.download('punkt')
 
+# Set NLTK data path explicitly
+nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+if not os.path.exists(nltk_data_path):
+    os.makedirs(nltk_data_path)
+nltk.data.path.append(nltk_data_path)
+
 # Load environment variables from .env file
 # load_dotenv()
 # key = os.getenv("GOOGLE_API_KEY")
