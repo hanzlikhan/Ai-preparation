@@ -1,9 +1,9 @@
 import streamlit as st
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import NLTKTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.messages import SystemMessage
@@ -11,29 +11,16 @@ from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplat
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables import RunnableLambda
-import nltk
 
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-
-# Set NLTK data path explicitly
-nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
-if not os.path.exists(nltk_data_path):
-    os.makedirs(nltk_data_path)
-nltk.data.path.append(nltk_data_path)
-
-# Load environment variables from .env file
-# load_dotenv()
-# key = os.getenv("GOOGLE_API_KEY")
-
-# for deployment on streamlit
+# Load environment variables from Streamlit secrets
 key = st.secrets["GOOGLE_API_KEY"]
+# load_dotenv()
+
+# key = os.getenv("GOOGLE_API_KEY")
 
 # Ensure the API key is loaded
 if not key:
-    st.error("Google Gemini API key not found. Please create a .env file with GOOGLE_API_KEY.")
+    st.error("Google Gemini API key not found.")
     st.stop()
 
 # --- App Configuration ---
@@ -44,10 +31,10 @@ SUBMIT_BUTTON_LABEL = "Get Answer"
 INSTRUCTIONS = """
 **Instructions:**
 
-1.  Enter your question in the text area below.
-2.  Click the 'Get Answer' button.
-3.  The chatbot will provide an answer based on the provided DAA materials.
-4.  Focus on topics like:
+1. Enter your question in the text area below.
+2. Click the 'Get Answer' button.
+3. The chatbot will provide an answer based on the provided DAA materials.
+4. Focus on topics like:
     * Recursion and its types.
     * Time and Space Complexity analysis.
     * Algorithm design paradigms.
@@ -64,14 +51,14 @@ try:
     loader = PyPDFLoader("data.pdf")  # Replace with your PDF
     pages = loader.load_and_split()
 except FileNotFoundError:
-    st.error("Error: The 'DAA_Midterm_Syllabus.pdf' file was not found. Please ensure it is in the correct directory.")
+    st.error("Error: The 'data.pdf' file was not found. Please ensure it is in the correct directory.")
     st.stop()
 except Exception as e:
     st.error(f"An error occurred while loading the PDF: {e}")
     st.stop()
 
-# Split the document into chunks
-text_splitter = NLTKTextSplitter(chunk_size=500, chunk_overlap=100)
+# Split the document into chunks using RecursiveCharacterTextSplitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
 chunks = text_splitter.split_documents(pages)
 
 # Create embeddings for the chunks
@@ -92,12 +79,12 @@ retriever = db_connection.as_retriever(search_kwargs={"k": 5})
 chat_template = ChatPromptTemplate.from_messages([
     # System Message Prompt Template
     SystemMessage(content="""You are a specialized AI tutor for Design and Analysis of Algorithms (DAA) mid-term exam preparation.
-                                Given a context from the DAA syllabus and a question from the user,
-                                you should provide a comprehensive and detailed answer.
-                                Focus on explaining concepts clearly, especially for time and space complexity analysis.
-                                If the question is about an algorithm's complexity, provide a step-by-step explanation.
-                                Summarize the context and explain the concepts in your own words.
-                                If the context does not contain the answer, you can state that you don't know."""),
+                                 Given a context from the DAA syllabus and a question from the user,
+                                 you should provide a comprehensive and detailed answer.
+                                 Focus on explaining concepts clearly, especially for time and space complexity analysis.
+                                 If the question is about an algorithm's complexity, provide a step-by-step explanation.
+                                 Summarize the context and explain the concepts in your own words.
+                                 If the context does not contain the answer, you can state that you don't know."""),
     # Human Message Prompt Template
     HumanMessagePromptTemplate.from_template("""Answer the question based on the given context.
     Context: {context}
